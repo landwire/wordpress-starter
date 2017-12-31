@@ -1,46 +1,66 @@
 #!/bin/bash
 DEFAULTURL=example.com
+DEFAULTTHEME=sagechild
 GITTRELLIS=git@github.com:roots/trellis.git
 GITBEDROCK=git@github.com:roots/bedrock.git
 GITSAGE=git@github.com:roots/sage.git
 
 
-echo "Please enter the site url (example.com):"
+echo "Please enter the site url ($DEFAULTURL):"
 
 read URL
 cd ..
 
-if [ -z "$URL" ] 
-then
-  if [ -d "$URL" ]; then
-    # Control will enter here if $DIRECTORY exists.
-    echo "The directory $DEFAULTURL exists already! Aborting."
-    exit 1
-  else
-    mkdir $DEFAULTURL
-    git clone --depth=1 $GITTRELLIS && rm -rf trellis/.git
-    git clone --depth=1 $GITBEDROCK site && rm -rf site/.git
-    git clone --depth=1 $GITSAGE site/web/app/themes/sage && rm -rf site/web/app/themes/sage/.git
-  fi
-else
-  if [ -d "$URL" ]; then
-    # Control will enter here if $DIRECTORY exists.
-    echo "The directory $URL exists already! Aborting."
-    exit 1
-  else
-    mkdir $URL
-    git clone --depth=1 $GITTRELLIS && rm -rf trellis/.git
-    git clone --depth=1 $GITBEDROCK site && rm -rf site/.git
-    git clone --depth=1 $GITSAGE site/web/app/themes/sage && rm -rf site/web/app/themes/sage/.git
-  fi
+if [ -z "$URL" ] ; then
+  URL=$DEFAULTURL
+  echo "URL = $URL"
 fi
 
-echo "Git repos successfully cloned. Please follow the instructions to create a new project."
+if mkdir -p "$URL" ; then
+  echo "1"
+  cd $URL
+  git clone --depth=1 $GITTRELLIS && rm -rf trellis/.git
+  cd trellis
+  cd group_vars
+  cd development
+  sed -i '' -e "s/example.com/$URL/g" vault.yml
+  sed -i '' -e "s/example.com/$URL/g" wordpress_sites.yml
+  sed -i '' -e "s/example.test/$URL/g" wordpress_sites.yml
 
-cd ..
-rm -rf wordpress-starter
+  cd ../../../
+  git clone --depth=1 $GITBEDROCK site && rm -rf site/.git
+  #git clone --depth=1 $GITSAGE site/web/app/themes/sage && rm -rf site/web/app/themes/sage/.git
 
-echo "Removed wordpress-starter directory and files."
+  cd site/web/app/themes
+  echo "Please enter the theme name ($DEFAULTTHEME):"
+  read $THEME
+  if [ -z "$THEME" ] ; then
+    THEME=$DEFAULTTHEME
+  fi
+
+  composer create-project roots/sage $THEME dev-master
+
+  cd $THEME
+  yarn && yarn build
+
+  cd ../../../../
+  cd trellis
+  vagrant up
+
+else
+  echo "The directory $URL exists already! Aborting."
+  exit 1
+fi
+
+#if [[ "$PWD" =~ "$URL" ]]; then
+#  cd ..
+#  rm -rf wordpress-starter
+#
+#  echo "Removed wordpress-starter directory and files."
+#fi
+
+
+
 
 # if git diff --quiet composer.lock; then
 #  echo "composer.lock has changes on disk or in the cache -- exiting"
