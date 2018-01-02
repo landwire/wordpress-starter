@@ -1,51 +1,73 @@
 #!/bin/bash
 DEFAULTURL=example.com
+DEFAULTFOLDER=example
 DEFAULTTHEME=sagechild
 GITTRELLIS=git@github.com:roots/trellis.git
 GITBEDROCK=git@github.com:roots/bedrock.git
 GITSAGE=git@github.com:roots/sage.git
 
 
+echo "Please enter the site folder name ($DEFAULTFOLDER):"
+read FOLDER
+
 echo "Please enter the site url ($DEFAULTURL):"
 
 read URL
 cd ..
 
-if [ -z "$URL" ] ; then
-  URL=$DEFAULTURL
-  echo "URL = $URL"
+if [ -z "$FOLDER" ] ; then
+  FOLDER=$DEFAULTFOLDER
+  echo "FOLDER = $FOLDER"
 fi
 
-if mkdir -p "$URL" ; then
+if mkdir -p "$FOLDER" ; then
   echo "1"
-  cd $URL
+  cd $FOLDER
   git clone --depth=1 $GITTRELLIS && rm -rf trellis/.git
   cd trellis
   cd group_vars
   cd development
-  sed -i '' -e "s/example.com/$URL/g" vault.yml
-  sed -i '' -e "s/example.com/$URL/g" wordpress_sites.yml
+  sed -i '' -e "s/example.com/$FOLDER/g" vault.yml
+  sed -i '' -e "s/example.com/$FOLDER/g" wordpress_sites.yml
   sed -i '' -e "s/example.test/$URL/g" wordpress_sites.yml
 
   cd ../../../
   git clone --depth=1 $GITBEDROCK site && rm -rf site/.git
-  #git clone --depth=1 $GITSAGE site/web/app/themes/sage && rm -rf site/web/app/themes/sage/.git
 
   cd site/web/app/themes
   echo "Please enter the theme name ($DEFAULTTHEME):"
-  read $THEME
+  read THEME
+
   if [ -z "$THEME" ] ; then
     THEME=$DEFAULTTHEME
   fi
 
   composer create-project roots/sage $THEME dev-master
 
-  cd $THEME
-  yarn && yarn build
+  sleep 2
 
-  cd ../../../../
+  cd $THEME
+  yarn
+  sleep 2
+  yarn build
+  sleep 2
+
+  cd ../../../../../
   cd trellis
   vagrant up
+
+  sleep 2
+
+  # launch the browser
+  OS=$(uname -s)
+  case "$OS" in
+    Darwin)
+      open "http://$URL"
+      ;;
+    Linux)
+      xdg-open "http://$URL"
+    ;;
+  esac
 
 else
   echo "The directory $URL exists already! Aborting."
@@ -58,57 +80,3 @@ fi
 #
 #  echo "Removed wordpress-starter directory and files."
 #fi
-
-
-
-
-# if git diff --quiet composer.lock; then
-#  echo "composer.lock has changes on disk or in the cache -- exiting"
-#  echo "composer.lock must be in the state you wish to deploy, and be committed"
-#  exit 1;
-# fi
-
-
-# change to deploy directory
-#cd $DEPLOYDIR
-#
-#echo "getting code"
-#
-#if [ -d "$ENVDIR" ]; then
-#  echo "found previous deploy, pulling new"
-# cd $ENVDIR
-# git remote add origin $DIR
-# git pull origin $DEPLOYBRANCH || exit 1
-#else
-#  echo "NO previous deploy, cloning new"
-#  git clone --branch $DEPLOYBRANCH $DIR $ENVDIR || exit 1
-#  cd $ENVDIR
-#fi
-#git remote rm origin  || exit 1
-#
-#
-#echo "performing composer install --no-dev"
-#composer install --no-dev
-#
-#sleep 2
-#
-#
-#echo "OK, does everything look good to deploy?"
-#select yn in "Yes" "No"; do
-#    case $yn in
-#        Yes ) echo "OK, deploying"; break ;;
-#        No ) exit 1;;
-#    esac
-#done
-#
-#
-#
-##cd $DEPLOYDIR
-#echo "rsync to stage except for settings.php files and files/ "
-#echo "wrapper directories around web are also sync'ed to include vendor and config etc.."
-##rsync -va --delete --exclude=web/sites/default/files/ --exclude=web/sites/default/settings*.php --exclude=web/themes/custom/iass/iass-010-frontend-prototype/node_modules $ENVDIR/ $DEPLOYTARGET
-#echo "don't forget to clear cache and import config on the server"
-#echo "for instance: "
-#echo "drush @iass-012.stage cr"
-#echo "drush @iass-012.stage cim"
-#echo "drush @iass-012.stage cr"
